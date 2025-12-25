@@ -1,0 +1,33 @@
+:root {
+	--color-bg-start: #faf6f1;
+  --color-bg-mid: #f5ebe0;
+  --color-bg-end: #ede4d8;
+  --color-text-primary: #4a3f35;
+  --color-text-secondary: #5c4a3d;
+  --color-text-muted: #8b7355;
+  --color-text-subtle: #6b5b4f;
+  --color-accent: #b8a898;
+  --color-separator: #c9b8a8;
+}
+
+* { 
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+}
+
+html, body {
+	height: 100%;
+}
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: linear-gradient(135deg, var(--color-bg-start) 0%, var(--color-bg-mid) 50%, var(--color-bg-end) 100%);
+  min-height: 100vh;
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
