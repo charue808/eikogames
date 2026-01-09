@@ -1,190 +1,228 @@
 <script lang="ts">
-	import { onMount } from "svelte";
-
-	const targetDate = new Date('2025-12-31T18:00:00-10:00');
-
-	let timeLeft= $state({
-		days: 0,
-		hours: 0,
-		minutes: 0,
-		seconds: 0
-	});
-
-	function updateCountdown() {
-		const now = new Date();
-		const difference = targetDate.getTime() - now.getTime();
-
-		if (difference > 0) {
-			timeLeft = {
-				days: Math.floor(difference / (1000 * 60 * 60 * 24)),
-        hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
-        minutes: Math.floor((difference / (1000 * 60)) % 60),
-        seconds: Math.floor((difference / 1000) % 60)
-			};
-		}
-	}
-
-	onMount(() => {
-		updateCountdown();
-		const interval = setInterval(updateCountdown, 1000);
-		return () => clearInterval(interval);
-	});
-
-	function padZero(num) {
-		return String(num).padStart(2, '0');
-	}
 </script>
 
 <svelte:head>
 	<title>Eiko Games - A cozy place to play</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+  <link href="https://fonts.googleapis.com/css2?family=Righteous&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
 </svelte:head>
 
 <main>
-	<div class="content">
-		<div class="title-wrapper">
-			<h1>Eiko Games</h1>
-		</div>
+  <div class="container">
+    <header class="hero">
+      <h1 class="title">Eiko Games</h1>
+      <p class="tagline">A cozy place to play</p>
+    </header>
+    <div class="games-grid">
+      <a href="/overlap" class="game-card multiplayer">
+        <div class="game-header">
+          <div class="game-icon">⭕</div>
+          <span class="player-badge multiplayer">
+					<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+						<circle cx="5" cy="6" r="2.5"/>
+						<circle cx="11" cy="6" r="2.5"/>
+						<path d="M1 14c0-2.2 1.8-4 4-4s4 1.8 4 4M7 14c0-2.2 1.8-4 4-4s4 1.8 4 4"/>
+					</svg>
+					Multiplayer
+				</span>
+        </div>
+        <h2>Overlap</h2>
+        <p>Find the perfect connection between two topics. 2-4 players, TV + phones.</p>
+      </a>
 
-		<p class="tagline">A cozy place to play</p>
+      <!-- Future Single Player Game -->
+      <div class="game-card single-player coming-soon">
+        <div class="game-header">
+          <div class="game-icon">🎯</div>
+          <span class="player-badge single-player">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+              <circle cx="8" cy="5" r="3"/>
+              <path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6"/>
+            </svg>
+            Single Player
+          </span>
+        </div>
+        <h2>Coming Soon</h2>
+        <p>Solo challenges and puzzles</p>
+      </div>
 
-		<p class="countdown-context">First game drops New Year's Eve · 6:00 PM HST</p>
-
-		<div class="countdown">
-			<div class="time-block">
-				<span class="time-value">{padZero(timeLeft.days)}</span>
-        <span class="time-label">Days</span>
-			</div>
-			<span class="separator">:</span>
-      <div class="time-block">
-        <span class="time-value">{padZero(timeLeft.hours)}</span>
-        <span class="time-label">Hours</span>
+      <!-- Future Multiplayer Game -->
+      <div class="game-card multiplayer coming-soon">
+        <div class="game-header">
+          <div class="game-icon">🎲</div>
+          <span class="player-badge multiplayer">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+              <circle cx="5" cy="6" r="2.5"/>
+              <circle cx="11" cy="6" r="2.5"/>
+              <path d="M1 14c0-2.2 1.8-4 4-4s4 1.8 4 4M7 14c0-2.2 1.8-4 4-4s4 1.8 4 4"/>
+            </svg>
+            Multiplayer
+          </span>
+        </div>
+        <h2>Coming Soon</h2>
+        <p>More party games on the way</p>
       </div>
-      <span class="separator">:</span>
-      <div class="time-block">
-        <span class="time-value">{padZero(timeLeft.minutes)}</span>
-        <span class="time-label">Mins</span>
-      </div>
-      <span class="separator">:</span>
-      <div class="time-block">
-        <span class="time-value">{padZero(timeLeft.seconds)}</span>
-        <span class="time-label">Secs</span>
-      </div>
-		</div>
-	</div>
-	<div class="decorative">✦</div>
+    </div>
+  </div>
 </main>
 
 <style>
-	main {
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 1.5rem;
-    position: relative;
-  }
-
-  .content {
-    text-align: center;
-    max-width: 42rem;
-  }
-
-  .title-wrapper {
-    position: relative;
-    display: inline-block;
-    padding: 1.5rem 2.5rem;
-    margin-bottom: 1rem;
-    border-radius: 1rem;
-  }
-
-  .title-wrapper::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: 1rem;
-    padding: 3px;
-    background: linear-gradient(
-      90deg,
-      #d4a574,
-      #c9a87c,
-      #e8c49a,
-      #d4a574,
-      #b8956e,
-      #c9a87c,
-      #e8c49a,
-      #d4a574
-    );
-    background-size: 300% 100%;
-    animation: gradient-shift 6s ease infinite;
-    -webkit-mask: 
-      linear-gradient(#fff 0 0) content-box, 
-      linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-  }
-
-  h1 {
-    font-size: clamp(3rem, 10vw, 4.5rem);
-    font-weight: 600;
-    letter-spacing: -0.025em;
-    color: var(--color-text-primary);
-  }
-
-  .tagline {
-    font-size: clamp(1.125rem, 3vw, 1.25rem);
-    color: var(--color-text-muted);
-    margin-bottom: 4rem;
-  }
-
-  .countdown-context {
-    font-size: clamp(1rem, 2.5vw, 1.125rem);
-    color: var(--color-text-subtle);
-    letter-spacing: 0.05em;
-    margin-bottom: 2rem;
-  }
-
-  .countdown {
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-    gap: clamp(1rem, 4vw, 2.5rem);
-  }
-
-  .time-block {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .time-value {
-    font-size: clamp(3rem, 10vw, 4.5rem);
-    font-weight: 300;
-    color: var(--color-text-secondary);
-    font-variant-numeric: tabular-nums;
-    line-height: 1;
-  }
-
-  .time-label {
-    font-size: clamp(0.75rem, 2vw, 1rem);
-    color: var(--color-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.15em;
-    margin-top: 0.5rem;
-  }
-
-  .separator {
-    font-size: clamp(2.5rem, 8vw, 3.5rem);
-    font-weight: 300;
-    color: var(--color-separator);
-    margin-top: 0.25rem;
-  }
-
-  .decorative {
-    position: absolute;
-    bottom: 2rem;
-    font-size: 0.875rem;
-    letter-spacing: 0.1em;
-    color: var(--color-accent);
-  }
+  :global(body) {
+		margin: 0;
+		padding: 0;
+		font-family: 'DM Sans', sans-serif;
+		background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+		min-height: 100vh;
+	}
+	
+	.container {
+		min-height: 100vh;
+		padding: 3rem 2rem;
+		max-width: 1200px;
+		margin: 0 auto;
+	}
+	
+	.hero {
+		text-align: center;
+		margin-bottom: 4rem;
+		animation: fadeIn 0.6s ease-out;
+	}
+	
+	@keyframes fadeIn {
+		from {
+			opacity: 0;
+			transform: translateY(20px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+	
+	.title {
+		font-family: 'Righteous', cursive;
+		font-size: 4rem;
+		color: #2d1810;
+		margin: 0 0 0.5rem 0;
+		text-shadow: 2px 2px 0 rgba(252, 182, 159, 0.3);
+	}
+	
+	.tagline {
+		font-size: 1.5rem;
+		color: #5d3a2e;
+		margin: 0;
+		font-weight: 500;
+	}
+	
+	.games-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+		gap: 2rem;
+		animation: slideUp 0.8s ease-out 0.2s both;
+	}
+	
+	@keyframes slideUp {
+		from {
+			opacity: 0;
+			transform: translateY(30px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+	
+	.game-card {
+		background: rgba(255, 255, 255, 0.9);
+		border-radius: 24px;
+		padding: 2rem;
+		backdrop-filter: blur(10px);
+		box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+		transition: all 0.3s ease;
+		text-decoration: none;
+		color: inherit;
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+		position: relative;
+		overflow: hidden;
+	}
+	
+	.game-card:not(.coming-soon) {
+		cursor: pointer;
+	}
+	
+	.game-card:not(.coming-soon):hover {
+		transform: translateY(-8px);
+		box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+	}
+	
+	.game-card.coming-soon {
+		opacity: 0.6;
+		cursor: default;
+	}
+	
+	.game-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+	}
+	
+	.game-icon {
+		font-size: 3rem;
+		line-height: 1;
+	}
+	
+	.player-badge {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.5rem 1rem;
+		border-radius: 20px;
+		font-size: 0.85rem;
+		font-weight: 600;
+	}
+	
+	.player-badge.multiplayer {
+		background: rgba(255, 107, 107, 0.15);
+		color: #ff6b6b;
+	}
+	
+	.player-badge.single-player {
+		background: rgba(76, 175, 80, 0.15);
+		color: #4caf50;
+	}
+	
+	.game-card h2 {
+		font-family: 'Righteous', cursive;
+		font-size: 2rem;
+		color: #2d1810;
+		margin: 0;
+	}
+	
+	.game-card p {
+		color: #5d3a2e;
+		line-height: 1.6;
+		margin: 0;
+		font-size: 1.05rem;
+	}
+	
+	@media (max-width: 768px) {
+		.container {
+			padding: 2rem 1rem;
+		}
+		
+		.title {
+			font-size: 3rem;
+		}
+		
+		.tagline {
+			font-size: 1.25rem;
+		}
+		
+		.games-grid {
+			grid-template-columns: 1fr;
+		}
+	}
 </style>
