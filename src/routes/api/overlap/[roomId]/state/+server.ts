@@ -9,7 +9,7 @@ export const GET: RequestHandler = async ({ params, url }) => {
 	try {
 		const { data: game, error: gameError } = await supabase
 			.from('games')
-			.select('id, status, current_round')
+			.select('id, status, current_round, created_at')
 			.eq('room_code', roomId)
 			.single();
 
@@ -38,7 +38,8 @@ export const GET: RequestHandler = async ({ params, url }) => {
 		return json({
 			status: game.status,
 			currentRound: game.current_round,
-			playerCount: count || 0
+			playerCount: count || 0,
+			createdAt: game.created_at
 		});
 		
 	} catch (error) {

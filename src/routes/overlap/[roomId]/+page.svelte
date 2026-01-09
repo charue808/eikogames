@@ -11,24 +11,36 @@
 	let gameState: any = null;
 	let currentPrompt: any = null;
 	let autoStartTimeout: ReturnType<typeof setTimeout>;
+	let lobbyCountdown = 60;
+	let countdownInterval: ReturnType<typeof setInterval>;
 
 	onMount(() => {
 		origin = window.location.origin;
 
-		const joinUrl = `${origin}/overlap/${roomCode}/join`;
-		QRCode.toCanvas(qrCanvas, joinUrl, {
-			width: 300,
-			color: {
-				dark: '#2d1810',
-				light: "#ffffff"
+		// Generate QR code after a short delay to ensure canvas is rendered
+		setTimeout(() => {
+			if (qrCanvas) {
+				const joinUrl = `${origin}/overlap/${roomCode}/join`;
+				QRCode.toCanvas(qrCanvas, joinUrl, {
+					width: 300,
+					color: {
+						dark: '#2d1810',
+						light: "#ffffff"
+					}
+				}).catch(error => {
+					console.error('Error generating QR code:', error);
+				});
+			} else {
+				console.error('QR canvas not found');
 			}
-		});
+		}, 100);
 
 		pollGameData();
 		pollInterval = setInterval(pollGameData, 2000);
 
 		return () => {
 			clearInterval(pollInterval);
+			if (countdownInterval) clearInterval(countdownInterval);
 			if (autoStartTimeout) clearTimeout(autoStartTimeout);
 		};
 	});
@@ -46,9 +58,9 @@
 			if (stateResponse.ok) {
 				gameState = await stateResponse.json();
 
-				// Auto-start game when 4 players join (only if in lobby)
-				if (gameState.status === 'lobby' && players.length === 4 && !autoStartTimeout) {
-					autoStartTimeout = setTimeout(startGame, 3000);
+				// Start countdown when in lobby
+				if (gameState.status === 'lobby' && !countdownInterval) {
+					startLobbyCountdown();
 				}
 
 				// If game is playing, fetch current prompt
@@ -56,6 +68,9 @@
 					const promptResponse = await fetch(`/api/overlap/${roomCode}/current-prompt`);
 					if (promptResponse.ok) {
 						currentPrompt = await promptResponse.json();
+						console.log('Current prompt:', currentPrompt);
+					} else {
+						console.error('Failed to fetch current prompt:', await promptResponse.text());
 					}
 				}
 			}
@@ -64,13 +79,38 @@
 		}
 	}
 
+	function startLobbyCountdown() {
+		if (!gameState || !gameState.createdAt) {
+			console.error('No game state or createdAt timestamp');
+			return;
+		}
+
+		// Calculate initial countdown based on game creation time
+		const createdAt = new Date(gameState.createdAt).getTime();
+		const updateCountdown = () => {
+			const now = Date.now();
+			const elapsed = Math.floor((now - createdAt) / 1000);
+			lobbyCountdown = Math.max(0, 60 - elapsed);
+
+			// Auto-start when countdown reaches 0 and we have at least 2 players
+			if (lobbyCountdown === 0 && players.length >= 2 && gameState.status === 'lobby') {
+				clearInterval(countdownInterval);
+				startGame();
+			}
+		};
+
+		updateCountdown();
+		countdownInterval = setInterval(updateCountdown, 1000);
+	}
+
 	async function startGame() {
 		try {
 			const response = await fetch(`/api/overlap/${roomCode}/start`, {
 				method: 'POST'
 			});
 			if (!response.ok) {
-				console.error('Failed to start game');
+				const error = await response.text();
+				console.error('Failed to start game:', error);
 			}
 		} catch (error) {
 			console.error('Error starting game:', error);
@@ -102,6 +142,11 @@
 						<canvas bind:this={qrCanvas}></canvas>
 					</div>
 					<p class="join-url">or visit: {origin}/overlap/{roomCode}/join</p>
+
+					<div class="countdown-timer" class:warning={lobbyCountdown <= 10}>
+						<div class="countdown-label">Game starts in:</div>
+						<div class="countdown-value">{lobbyCountdown}s</div>
+					</div>
 				</div>
 
 				<div class="players-section">
@@ -124,13 +169,13 @@
 				</div>
 			</div>
 
-			{#if players.length >= 2 && players.length <= 4}
+			{#if players.length >= 1}
 				<div class="ready-banner">
-					{#if players.length === 4}
-						All players ready! Starting game...
-					{:else}
-						{players.length}/4 players - Waiting for more...
-					{/if}
+					{players.length}/4 players joined - {lobbyCountdown > 0 ? 'Game starting soon...' : 'Starting now!'}
+				</div>
+			{:else}
+				<div class="waiting-banner">
+					Waiting for at least 1 players to join...
 				</div>
 			{/if}
 
@@ -324,19 +369,61 @@
 		font-style: italic;
 	}
 	
-	.ready-banner {
+	.countdown-timer {
+		margin-top: 2rem;
+		text-align: center;
+		background: rgba(255, 107, 107, 0.15);
+		padding: 1.5rem;
+		border-radius: 20px;
+		border: 2px solid rgba(255, 107, 107, 0.3);
+	}
+
+	.countdown-timer.warning {
+		background: rgba(198, 40, 40, 0.15);
+		border-color: rgba(198, 40, 40, 0.5);
+		animation: pulse 1s infinite;
+	}
+
+	.countdown-label {
+		font-size: 1.2rem;
+		color: #5d3a2e;
+		margin-bottom: 0.5rem;
+		font-weight: 600;
+	}
+
+	.countdown-value {
+		font-family: 'Righteous', cursive;
+		font-size: 3rem;
+		color: #ff6b6b;
+		font-weight: 700;
+	}
+
+	.countdown-timer.warning .countdown-value {
+		color: #c62828;
+	}
+
+	.ready-banner,
+	.waiting-banner {
 		position: fixed;
 		bottom: 3rem;
 		left: 50%;
 		transform: translateX(-50%);
-		background: #4caf50;
 		color: white;
 		padding: 1.5rem 3rem;
 		border-radius: 50px;
 		font-size: 1.5rem;
 		font-weight: 700;
-		box-shadow: 0 10px 30px rgba(76, 175, 80, 0.4);
 		animation: bounceIn 0.6s ease-out;
+	}
+
+	.ready-banner {
+		background: #4caf50;
+		box-shadow: 0 10px 30px rgba(76, 175, 80, 0.4);
+	}
+
+	.waiting-banner {
+		background: #ff9800;
+		box-shadow: 0 10px 30px rgba(255, 152, 0, 0.4);
 	}
 	
 	@keyframes bounceIn {

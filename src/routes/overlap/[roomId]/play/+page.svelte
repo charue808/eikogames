@@ -47,7 +47,19 @@
 				if (gameStatus === 'playing') {
 					const promptResponse = await fetch(`/api/overlap/${roomCode}/current-prompt`);
 					if (promptResponse.ok) {
-						currentPrompt = await promptResponse.json();
+						const newPrompt = await promptResponse.json();
+
+						// Check if we have a new round - reset submission state
+						if (currentPrompt && newPrompt.roundNumber !== currentPrompt.roundNumber) {
+							hasSubmitted = false;
+							answerText = '';
+							submitError = '';
+						}
+
+						currentPrompt = newPrompt;
+						console.log('Player current prompt:', currentPrompt);
+					} else {
+						console.error('Failed to fetch current prompt:', await promptResponse.text());
 					}
 				}
 			}
