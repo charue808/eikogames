@@ -31,8 +31,8 @@ export const POST: RequestHandler = async ({ params }) => {
 			return json({ error: 'Failed to fetch players' }, { status: 500 });
 		}
 
-		if (players.length < 2) {
-			return json({ error: 'Need at least 2 players to start' }, { status: 400 });
+		if (players.length < 1) {
+			return json({ error: 'Need at least 1 player to start' }, { status: 400 });
 		}
 
 		if (players.length > 4) {

@@ -90,8 +90,9 @@
 			const elapsed = Math.floor((now - createdAt) / 1000);
 			lobbyCountdown = Math.max(0, 60 - elapsed);
 
-			// Auto-start when countdown reaches 0 and we have at least 2 players
-			if (lobbyCountdown === 0 && players.length >= 2 && gameState.status === 'lobby') {
+			// Auto-start when countdown reaches 0 and we have at least 1 player
+			if (lobbyCountdown === 0 && players.length >= 1 && gameState.status === 'lobby') {
+				console.log('Countdown reached 0! Starting game with', players.length, 'players');
 				clearInterval(countdownInterval);
 				startGame();
 			}
@@ -103,15 +104,21 @@
 
 	async function startGame() {
 		try {
+			console.log('Starting game...');
 			const response = await fetch(`/api/overlap/${roomCode}/start`, {
 				method: 'POST'
 			});
 			if (!response.ok) {
-				const error = await response.text();
-				console.error('Failed to start game:', error);
+				const errorText = await response.text();
+				console.error('Failed to start game:', response.status, errorText);
+				alert(`Failed to start game: ${errorText}`);
+			} else {
+				const result = await response.json();
+				console.log('Game started successfully:', result);
 			}
 		} catch (error) {
 			console.error('Error starting game:', error);
+			alert(`Error starting game: ${error.message}`);
 		}
 	}
 
