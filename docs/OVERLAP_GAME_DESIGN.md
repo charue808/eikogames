@@ -27,6 +27,8 @@ Eiko Games is a cozy gaming platform. The first game is "Overlap" - a party game
 ### Known Issues Fixed:
 - ✅ SSR issue with `window.location.origin` - moved to `onMount`
 - ✅ `pollInterval` type annotation - using `ReturnType<typeof setInterval>`
+- ✅ QR code not rendering on TV display - moved QR generation to `$effect()` reactive statement that triggers when canvas exists and gameState is 'lobby'
+- ✅ Svelte 5 reactivity warnings - converted state variables to use `$state()` rune instead of plain `let` declarations
 
 ---
 

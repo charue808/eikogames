@@ -154,6 +154,34 @@ This allows:
 
 ## State Management
 
+### Svelte 5 Reactivity
+
+**Using Runes:**
+- Project uses Svelte 5 with runes syntax (`$state`, `$effect`, etc.)
+- State variables must be declared with `$state()` to be reactive
+- Use `$effect()` for reactive side effects (replaces `$:` reactive statements)
+- Example: `let gameState = $state<any>(null);` instead of `let gameState: any = null;`
+
+**Common Patterns:**
+```typescript
+// Reactive state
+let players = $state<Player[]>([]);
+let gameState = $state<GameState | null>(null);
+
+// Reactive effect - runs when dependencies change
+$effect(() => {
+  if (qrCanvas && gameState?.status === 'lobby' && origin) {
+    // Generate QR code when all conditions met
+    QRCode.toCanvas(qrCanvas, joinUrl, options);
+  }
+});
+```
+
+**Important Notes:**
+- Canvas elements and conditional rendering: Use `$effect()` to ensure DOM elements exist before accessing them
+- Avoid timing issues by letting Svelte's reactivity determine when to run effects
+- All variables that will be reassigned should use `$state()` for proper reactivity
+
 ### Polling Strategy
 
 **Why Polling Over WebSockets:**

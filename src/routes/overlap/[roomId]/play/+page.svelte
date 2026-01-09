@@ -8,7 +8,7 @@
 	let playerName = '';
 	let gameStatus = 'lobby';
 	let playerCount = 0;
-	let pollInterval: number;
+	let pollInterval: ReturnType<typeof setInterval>;
 	let currentPrompt: any = null;
 	let answerText = '';
 	let hasSubmitted = false;
