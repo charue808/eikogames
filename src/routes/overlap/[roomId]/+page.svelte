@@ -3,37 +3,19 @@
 	import { page } from "$app/state";
 	import QRCode from "qrcode";
 
-	let qrCanvas: HTMLCanvasElement;
-	let players: any[] = [];
+	let qrCanvas = $state<HTMLCanvasElement>();
+	let players = $state<any[]>([]);
 	let roomCode = page.params.roomId;
 	let pollInterval: ReturnType<typeof setInterval>;
-	let origin = '';
-	let gameState: any = null;
-	let currentPrompt: any = null;
+	let origin = $state('');
+	let gameState = $state<any>(null);
+	let currentPrompt = $state<any>(null);
 	let autoStartTimeout: ReturnType<typeof setTimeout>;
-	let lobbyCountdown = 60;
+	let lobbyCountdown = $state(60);
 	let countdownInterval: ReturnType<typeof setInterval>;
 
 	onMount(() => {
 		origin = window.location.origin;
-
-		// Generate QR code after a short delay to ensure canvas is rendered
-		setTimeout(() => {
-			if (qrCanvas) {
-				const joinUrl = `${origin}/overlap/${roomCode}/join`;
-				QRCode.toCanvas(qrCanvas, joinUrl, {
-					width: 300,
-					color: {
-						dark: '#2d1810',
-						light: "#ffffff"
-					}
-				}).catch(error => {
-					console.error('Error generating QR code:', error);
-				});
-			} else {
-				console.error('QR canvas not found');
-			}
-		}, 100);
 
 		pollGameData();
 		pollInterval = setInterval(pollGameData, 2000);
@@ -43,6 +25,22 @@
 			if (countdownInterval) clearInterval(countdownInterval);
 			if (autoStartTimeout) clearTimeout(autoStartTimeout);
 		};
+	});
+
+	// Generate QR code when canvas is available and we're in lobby
+	$effect(() => {
+		if (qrCanvas && gameState?.status === 'lobby' && origin) {
+			const joinUrl = `${origin}/overlap/${roomCode}/join`;
+			QRCode.toCanvas(qrCanvas, joinUrl, {
+				width: 300,
+				color: {
+					dark: '#2d1810',
+					light: "#ffffff"
+				}
+			}).catch(error => {
+				console.error('Error generating QR code:', error);
+			});
+		}
 	});
 
 	async function pollGameData() {
