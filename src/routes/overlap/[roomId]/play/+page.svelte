@@ -68,6 +68,11 @@
 							fetchVotingAnswers();
 						}
 
+						// Also fetch answers if we're in voting phase but don't have answers yet
+						if (newPrompt.phase === 'voting' && votingAnswers.length === 0 && !hasVoted) {
+							fetchVotingAnswers();
+						}
+
 						currentPrompt = newPrompt;
 						console.log('Player current prompt:', currentPrompt);
 
@@ -130,6 +135,8 @@
 				const data = await response.json();
 				votingAnswers = data.answers;
 				hasVoted = data.hasVoted;
+				console.log('Fetched voting answers:', data);
+				console.log('Number of votable answers:', votingAnswers.length);
 			} else {
 				console.error('Failed to fetch voting answers:', await response.text());
 			}
@@ -173,6 +180,8 @@
 	async function checkPhaseTransition() {
 		if (!currentPrompt || currentPrompt.timeRemaining > 0) return;
 
+		console.log('Attempting to advance phase from:', currentPrompt.phase);
+
 		try {
 			const response = await fetch(`/api/overlap/${roomCode}/advance-phase`, {
 				method: 'POST'
@@ -180,7 +189,8 @@
 
 			if (response.ok) {
 				// Phase advanced, poll will pick up the change
-				console.log('Phase advanced successfully');
+				const data = await response.json();
+				console.log('Phase advanced successfully from', data.previousPhase, 'to', data.newPhase);
 			} else {
 				// Might already be advanced or not ready yet
 				const data = await response.json();

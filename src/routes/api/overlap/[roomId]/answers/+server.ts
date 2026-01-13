@@ -28,6 +28,7 @@ export const GET: RequestHandler = async ({ params, url }) => {
 			.select(`
 				id,
 				answer_text,
+				player_id,
 				players (
 					id,
 					display_name
@@ -41,8 +42,18 @@ export const GET: RequestHandler = async ({ params, url }) => {
 			return json({ error: 'Failed to fetch answers' }, { status: 500 });
 		}
 
+		console.log(`[Voting Answers] Game: ${game.id}, Round: ${game.current_round}, Total answers: ${answers?.length || 0}`);
+		console.log('[Voting Answers] All answers:', JSON.stringify(answers, null, 2));
+
 		// Filter out the current player's answer (can't vote for yourself)
-		const votableAnswers = answers?.filter(answer => answer.players.id !== playerId) || [];
+		const votableAnswers = answers?.filter(answer => {
+			// Use player_id field directly instead of nested players.id
+			const isOwnAnswer = answer.player_id === playerId;
+			console.log(`[Voting Answers] Answer ${answer.id} by player ${answer.player_id}, current player: ${playerId}, is own answer: ${isOwnAnswer}`);
+			return !isOwnAnswer;
+		}) || [];
+
+		console.log(`[Voting Answers] Votable answers count: ${votableAnswers.length}`);
 
 		// Check if the current player has already voted
 		let hasVoted = false;
