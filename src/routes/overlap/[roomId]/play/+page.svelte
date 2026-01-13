@@ -14,6 +14,10 @@
 	let hasSubmitted = false;
 	let isSubmitting = false;
 	let submitError = '';
+	let votingAnswers: any[] = [];
+	let hasVoted = false;
+	let isVoting = false;
+	let voteError = '';
 
 	onMount(() => {
 		playerId = localStorage.getItem('eiko-player-id') || '';
@@ -54,10 +58,23 @@
 							hasSubmitted = false;
 							answerText = '';
 							submitError = '';
+							hasVoted = false;
+							votingAnswers = [];
+							voteError = '';
+						}
+
+						// Check if phase changed to voting - fetch answers
+						if (currentPrompt && currentPrompt.phase !== 'voting' && newPrompt.phase === 'voting') {
+							fetchVotingAnswers();
 						}
 
 						currentPrompt = newPrompt;
 						console.log('Player current prompt:', currentPrompt);
+
+						// Auto-advance phase when timer reaches 0
+						if (currentPrompt.timeRemaining === 0 && currentPrompt.phase !== 'results') {
+							await checkPhaseTransition();
+						}
 					} else {
 						console.error('Failed to fetch current prompt:', await promptResponse.text());
 					}
@@ -103,6 +120,74 @@
 	function handleKeyPress(event: KeyboardEvent) {
 		if (event.key === 'Enter' && !isSubmitting) {
 			submitAnswer();
+		}
+	}
+
+	async function fetchVotingAnswers() {
+		try {
+			const response = await fetch(`/api/overlap/${roomCode}/answers?playerId=${playerId}`);
+			if (response.ok) {
+				const data = await response.json();
+				votingAnswers = data.answers;
+				hasVoted = data.hasVoted;
+			} else {
+				console.error('Failed to fetch voting answers:', await response.text());
+			}
+		} catch (error) {
+			console.error('Error fetching voting answers:', error);
+		}
+	}
+
+	async function submitVote(answerId: string) {
+		if (isVoting) return;
+
+		isVoting = true;
+		voteError = '';
+
+		try {
+			const response = await fetch(`/api/overlap/${roomCode}/vote`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					playerId,
+					answerId
+				})
+			});
+
+			if (response.ok) {
+				hasVoted = true;
+			} else {
+				const error = await response.json();
+				voteError = error.error || 'Failed to submit vote';
+			}
+		} catch (error) {
+			console.error('Error submitting vote:', error);
+			voteError = 'Network error. Please try again.';
+		} finally {
+			isVoting = false;
+		}
+	}
+
+	async function checkPhaseTransition() {
+		if (!currentPrompt || currentPrompt.timeRemaining > 0) return;
+
+		try {
+			const response = await fetch(`/api/overlap/${roomCode}/advance-phase`, {
+				method: 'POST'
+			});
+
+			if (response.ok) {
+				// Phase advanced, poll will pick up the change
+				console.log('Phase advanced successfully');
+			} else {
+				// Might already be advanced or not ready yet
+				const data = await response.json();
+				console.log('Phase advance response:', data);
+			}
+		} catch (error) {
+			console.error('Error advancing phase:', error);
 		}
 	}
 </script>
@@ -183,6 +268,61 @@
 								<p class="hint">{currentPrompt.submittedCount}/{playerCount} submitted</p>
 							</div>
 						{/if}
+					</div>
+				{:else if currentPrompt.phase === 'voting'}
+					<div class="voting-state">
+						<div class="timer-badge" class:warning={currentPrompt.timeRemaining < 10}>
+							{currentPrompt.timeRemaining}s
+						</div>
+
+						<div class="prompt-display">
+							<h2>Round {currentPrompt.roundNumber}</h2>
+							<p class="instruction">Vote for the best answer!</p>
+							<div class="topics">
+								<div class="topic topic-1">{currentPrompt.topic1}</div>
+								<div class="overlap-icon">∩</div>
+								<div class="topic topic-2">{currentPrompt.topic2}</div>
+							</div>
+						</div>
+
+						{#if votingAnswers.length === 0}
+							<div class="no-answers">
+								<p>No answers to vote on!</p>
+								<p class="hint">Waiting for results...</p>
+							</div>
+						{:else if !hasVoted}
+							<div class="voting-section">
+								<p class="vote-instruction">Tap an answer to vote:</p>
+								<div class="answers-list">
+									{#each votingAnswers as answer}
+										<button
+											class="answer-card"
+											on:click={() => submitVote(answer.id)}
+											disabled={isVoting}
+										>
+											<div class="answer-text">{answer.answerText}</div>
+											<div class="answer-author">by {answer.playerName}</div>
+										</button>
+									{/each}
+								</div>
+								{#if voteError}
+									<p class="error">{voteError}</p>
+								{/if}
+							</div>
+						{:else}
+							<div class="voted-state">
+								<div class="checkmark">✓</div>
+								<h3>Vote Submitted!</h3>
+								<p class="hint">Waiting for other players...</p>
+							</div>
+						{/if}
+					</div>
+				{:else if currentPrompt.phase === 'results'}
+					<div class="results-state">
+						<div class="prompt-display">
+							<h2>Round {currentPrompt.roundNumber} Results</h2>
+							<p class="instruction">Coming soon...</p>
+						</div>
 					</div>
 				{/if}
 			{/if}
@@ -530,5 +670,113 @@
 
 	.submitted-state strong {
 		color: #ff6b6b;
+	}
+
+	/* VOTING PHASE STYLES */
+	.voting-state {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		gap: 1.5rem;
+		animation: fadeIn 0.5s ease-out;
+	}
+
+	.voting-section {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+	}
+
+	.vote-instruction {
+		text-align: center;
+		font-size: 1.1rem;
+		font-weight: 600;
+		color: #5d3a2e;
+		margin: 0;
+	}
+
+	.answers-list {
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+		overflow-y: auto;
+		max-height: 400px;
+	}
+
+	.answer-card {
+		background: white;
+		border: 2px solid rgba(45, 24, 16, 0.1);
+		border-radius: 15px;
+		padding: 1.5rem;
+		cursor: pointer;
+		transition: all 0.2s ease;
+		text-align: left;
+		width: 100%;
+	}
+
+	.answer-card:hover:not(:disabled) {
+		border-color: #ff6b6b;
+		transform: translateY(-2px);
+		box-shadow: 0 4px 15px rgba(255, 107, 107, 0.2);
+	}
+
+	.answer-card:active:not(:disabled) {
+		transform: translateY(0);
+	}
+
+	.answer-card:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
+	}
+
+	.answer-text {
+		font-size: 1.2rem;
+		font-weight: 600;
+		color: #2d1810;
+		margin-bottom: 0.5rem;
+	}
+
+	.answer-author {
+		font-size: 0.95rem;
+		color: #999;
+		font-style: italic;
+	}
+
+	.no-answers {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		text-align: center;
+		gap: 0.5rem;
+	}
+
+	.voted-state {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		text-align: center;
+		gap: 1rem;
+		animation: slideUp 0.5s ease-out;
+	}
+
+	.voted-state h3 {
+		font-family: 'Righteous', cursive;
+		font-size: 1.8rem;
+		color: #2d1810;
+		margin: 0;
+	}
+
+	/* RESULTS PHASE STYLES */
+	.results-state {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		gap: 1.5rem;
+		animation: fadeIn 0.5s ease-out;
 	}
 </style>

@@ -13,6 +13,7 @@
 	let autoStartTimeout: ReturnType<typeof setTimeout>;
 	let lobbyCountdown = $state(60);
 	let countdownInterval: ReturnType<typeof setInterval>;
+	let votingAnswers = $state<any[]>([]);
 
 	onMount(() => {
 		origin = window.location.origin;
@@ -65,8 +66,20 @@
 				if (gameState.status === 'playing') {
 					const promptResponse = await fetch(`/api/overlap/${roomCode}/current-prompt`);
 					if (promptResponse.ok) {
-						currentPrompt = await promptResponse.json();
+						const newPrompt = await promptResponse.json();
+
+						// Check if phase changed to voting - fetch answers
+						if (currentPrompt && currentPrompt.phase !== 'voting' && newPrompt.phase === 'voting') {
+							await fetchVotingAnswers();
+						}
+
+						currentPrompt = newPrompt;
 						console.log('Current prompt:', currentPrompt);
+
+						// Auto-advance phase when timer reaches 0
+						if (currentPrompt.timeRemaining === 0 && currentPrompt.phase !== 'results') {
+							await checkPhaseTransition();
+						}
 					} else {
 						console.error('Failed to fetch current prompt:', await promptResponse.text());
 					}
@@ -119,6 +132,39 @@
 		} catch (error) {
 			console.error('Error starting game:', error);
 			alert(`Error starting game: ${error.message}`);
+		}
+	}
+
+	async function fetchVotingAnswers() {
+		try {
+			const response = await fetch(`/api/overlap/${roomCode}/answers`);
+			if (response.ok) {
+				const data = await response.json();
+				votingAnswers = data.answers;
+			} else {
+				console.error('Failed to fetch voting answers:', await response.text());
+			}
+		} catch (error) {
+			console.error('Error fetching voting answers:', error);
+		}
+	}
+
+	async function checkPhaseTransition() {
+		if (!currentPrompt || currentPrompt.timeRemaining > 0) return;
+
+		try {
+			const response = await fetch(`/api/overlap/${roomCode}/advance-phase`, {
+				method: 'POST'
+			});
+
+			if (response.ok) {
+				console.log('Phase advanced successfully');
+			} else {
+				const data = await response.json();
+				console.log('Phase advance response:', data);
+			}
+		} catch (error) {
+			console.error('Error advancing phase:', error);
 		}
 	}
 
@@ -185,47 +231,96 @@
 			{/if}
 
 		{:else if gameState?.status === 'playing' && currentPrompt}
-			<!-- ANSWERING PHASE VIEW -->
-			<div class="game-content">
-				<div class="round-info">
-					<div class="round-number">Round {currentPrompt.roundNumber}</div>
-					<div class="timer" class:warning={currentPrompt.timeRemaining < 10}>
-						{currentPrompt.timeRemaining}s
-					</div>
-				</div>
-
-				<div class="prompt-container">
-					<h2 class="instruction">What belongs in both?</h2>
-
-					<div class="venn-diagram">
-						<div class="circle circle-left">
-							<div class="circle-content">
-								{currentPrompt.topic1}
-							</div>
+			{#if currentPrompt.phase === 'answering'}
+				<!-- ANSWERING PHASE VIEW -->
+				<div class="game-content">
+					<div class="round-info">
+						<div class="round-number">Round {currentPrompt.roundNumber}</div>
+						<div class="timer" class:warning={currentPrompt.timeRemaining < 10}>
+							{currentPrompt.timeRemaining}s
 						</div>
-						<div class="circle circle-right">
-							<div class="circle-content">
-								{currentPrompt.topic2}
-							</div>
-						</div>
-						<div class="overlap-label">?</div>
 					</div>
-				</div>
 
-				<div class="submission-status">
-					<h3>Submissions: {currentPrompt.submittedCount}/{players.length}</h3>
-					<div class="player-status-grid">
-						{#each players as player}
-							<div class="player-status">
-								<div class="player-avatar-small">
-									{player.player_name.charAt(0).toUpperCase()}
+					<div class="prompt-container">
+						<h2 class="instruction">What belongs in both?</h2>
+
+						<div class="venn-diagram">
+							<div class="circle circle-left">
+								<div class="circle-content">
+									{currentPrompt.topic1}
 								</div>
-								<span class="player-status-name">{player.player_name}</span>
 							</div>
-						{/each}
+							<div class="circle circle-right">
+								<div class="circle-content">
+									{currentPrompt.topic2}
+								</div>
+							</div>
+							<div class="overlap-label">?</div>
+						</div>
+					</div>
+
+					<div class="submission-status">
+						<h3>Submissions: {currentPrompt.submittedCount}/{players.length}</h3>
+						<div class="player-status-grid">
+							{#each players as player}
+								<div class="player-status">
+									<div class="player-avatar-small">
+										{player.player_name.charAt(0).toUpperCase()}
+									</div>
+									<span class="player-status-name">{player.player_name}</span>
+								</div>
+							{/each}
+						</div>
 					</div>
 				</div>
-			</div>
+			{:else if currentPrompt.phase === 'voting'}
+				<!-- VOTING PHASE VIEW -->
+				<div class="game-content">
+					<div class="round-info">
+						<div class="round-number">Round {currentPrompt.roundNumber} - Voting</div>
+						<div class="timer" class:warning={currentPrompt.timeRemaining < 10}>
+							{currentPrompt.timeRemaining}s
+						</div>
+					</div>
+
+					<div class="voting-container">
+						<h2 class="instruction">Vote for the best answer!</h2>
+						<div class="voting-prompt">
+							<div class="topic topic-1">{currentPrompt.topic1}</div>
+							<div class="overlap-icon">∩</div>
+							<div class="topic topic-2">{currentPrompt.topic2}</div>
+						</div>
+
+						{#if votingAnswers.length === 0}
+							<div class="no-votes-message">
+								<p>No answers to display</p>
+								<p class="sub-text">Moving to results...</p>
+							</div>
+						{:else}
+							<div class="tv-answers-grid">
+								{#each votingAnswers as answer}
+									<div class="tv-answer-card">
+										<div class="tv-answer-text">{answer.answerText}</div>
+										<div class="tv-answer-author">by {answer.playerName}</div>
+									</div>
+								{/each}
+							</div>
+						{/if}
+					</div>
+				</div>
+			{:else if currentPrompt.phase === 'results'}
+				<!-- RESULTS PHASE VIEW -->
+				<div class="game-content">
+					<div class="round-info">
+						<div class="round-number">Round {currentPrompt.roundNumber} - Results</div>
+					</div>
+
+					<div class="results-container">
+						<h2 class="instruction">Round Complete!</h2>
+						<p class="results-message">Results coming soon...</p>
+					</div>
+				</div>
+			{/if}
 		{/if}
 	</div>
 </main>
@@ -655,5 +750,119 @@
 		font-size: 1rem;
 		color: #5d3a2e;
 		font-weight: 600;
+	}
+
+	/* VOTING PHASE STYLES */
+	.voting-container {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		background: rgba(255, 255, 255, 0.8);
+		padding: 3rem;
+		border-radius: 30px;
+		backdrop-filter: blur(10px);
+	}
+
+	.voting-prompt {
+		display: flex;
+		align-items: center;
+		gap: 2rem;
+		margin-bottom: 3rem;
+	}
+
+	.topic {
+		background: rgba(255, 107, 107, 0.2);
+		padding: 1.5rem 2rem;
+		border-radius: 20px;
+		font-size: 1.5rem;
+		font-weight: 700;
+		color: #2d1810;
+		min-width: 200px;
+		text-align: center;
+	}
+
+	.topic-2 {
+		background: rgba(76, 175, 255, 0.2);
+	}
+
+	.overlap-icon {
+		font-size: 3rem;
+		color: #2d1810;
+		font-weight: 700;
+	}
+
+	.tv-answers-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+		gap: 2rem;
+		width: 100%;
+		max-width: 1200px;
+	}
+
+	.tv-answer-card {
+		background: white;
+		border: 3px solid rgba(45, 24, 16, 0.1);
+		border-radius: 20px;
+		padding: 2rem;
+		transition: all 0.3s ease;
+		animation: slideIn 0.4s ease-out;
+	}
+
+	.tv-answer-text {
+		font-size: 1.8rem;
+		font-weight: 700;
+		color: #2d1810;
+		margin-bottom: 1rem;
+		min-height: 60px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		text-align: center;
+	}
+
+	.tv-answer-author {
+		font-size: 1.2rem;
+		color: #999;
+		font-style: italic;
+		text-align: center;
+	}
+
+	.no-votes-message {
+		text-align: center;
+		padding: 3rem;
+	}
+
+	.no-votes-message p {
+		font-size: 1.8rem;
+		color: #2d1810;
+		margin: 0.5rem 0;
+	}
+
+	.no-votes-message .sub-text {
+		font-size: 1.2rem;
+		color: #999;
+		font-style: italic;
+	}
+
+	/* RESULTS PHASE STYLES */
+	.results-container {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		background: rgba(255, 255, 255, 0.8);
+		padding: 3rem;
+		border-radius: 30px;
+		backdrop-filter: blur(10px);
+		text-align: center;
+	}
+
+	.results-message {
+		font-size: 1.5rem;
+		color: #5d3a2e;
+		font-style: italic;
 	}
 </style>
